@@ -7,6 +7,9 @@ import { TaskEntity } from './entitys/task.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { TaskLabelEntity } from './entitys/task-label.entity';
 import { TaskLabelDto } from './dto/create-task-lable.dto';
+import { FindAllTaskParams } from './parmams/find-all-task.param';
+import { FindOneTaskParams } from './parmams/find-one-task.params';
+import { PaginationParams } from 'src/common/pagination.params';
 
 @Injectable()
 export class TasksService {
@@ -17,9 +20,72 @@ export class TasksService {
     private readonly labelRepository: Repository<TaskLabelEntity>,
   ) {}
 
-  async findAll(): Promise<TaskEntity[]> {
-    return await this.taskRepository.find();
+  async findAll(params: FindAllTaskParams, pagination: PaginationParams): Promise<[TaskEntity[], number]> {
+    const { status, search, labels } = params;
+
+    const query = this.taskRepository
+      .createQueryBuilder('task')
+      .leftJoinAndSelect('task.labels', 'labels')
+      .skip(pagination.offset)
+      .take(pagination.limit);
+
+      query.orderBy(`task.${params.sortBy || 'createdAt'}`, params.sortOrder || 'ASC');
+
+    if (status) {
+      query.andWhere('task.status = :status', { status });
+    }
+
+    if (search) {
+      query.andWhere(
+        '(task.title ILIKE :search OR task.description ILIKE :search)',
+        { search: `%${search}%` },
+      );
+    }
+
+    if (labels?.length) {
+      const subQuery = query
+        .subQuery()
+        .select('label.taskId')
+        .from('task_labels', 'label')
+        .where('label.name IN (:...labels)', { labels })
+        .getQuery();
+
+      query.andWhere(`task.id IN ${subQuery}`);
+    }
+
+    return await query.getManyAndCount();
   }
+
+  // Альтернатива через findAndCount + объект/массив where.
+  // Чтобы включить: раскомментируй, переименуй в findAll (убрав активный
+  // вариант выше) и верни импорты Like, FindOptionsWhere из 'typeorm'.
+  //
+  // async findAllWithFindAndCount(
+  //   params: FindAllTaskParams,
+  //   pagination: PaginationParams,
+  // ): Promise<[TaskEntity[], number]> {
+  //   const { status, search } = params;
+  //
+  //   let where: FindOptionsWhere<TaskEntity> | FindOptionsWhere<TaskEntity>[] = {};
+  //
+  //   if (status) {
+  //     where.status = status;
+  //   }
+  //
+  //   if (search) {
+  //     where = [
+  //       { title: Like(`%${search}%`) },
+  //       { description: Like(`%${search}%`) },
+  //     ];
+  //   }
+  //
+  //   return await this.taskRepository.findAndCount({
+  //     where,
+  //     relations: { labels: true },
+  //     skip: pagination.offset,
+  //     take: pagination.limit,
+  //   });
+  // }
 
   async findOne(id: string): Promise<TaskEntity | null> {
     return await this.taskRepository.findOne({

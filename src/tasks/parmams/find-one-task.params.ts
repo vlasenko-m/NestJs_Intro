@@ -1,6 +1,6 @@
 import { IsString, IsUUID } from "class-validator";
 
-export class FindOneParams {
+export class FindOneTaskParams {
     @IsString()
     @IsUUID()
     id!: string;
