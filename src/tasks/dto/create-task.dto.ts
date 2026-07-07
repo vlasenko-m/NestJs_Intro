@@ -7,18 +7,19 @@ export class CreateTaskDto {
     @IsNotEmpty()
     @IsString()
     
-    title: string;
+    title!: string;
 
     @IsNotEmpty()
     @IsString()
-    description: string;
+    description!: string;
 
     @IsNotEmpty()
     @IsEnum(TaskStatus)
-    status: TaskStatus;
+    status!: TaskStatus;
 
     @IsOptional()
     @ValidateNested({ each: true })
     @Type(() => TaskLabelDto)
     labels?: TaskLabelDto[];
+
 }

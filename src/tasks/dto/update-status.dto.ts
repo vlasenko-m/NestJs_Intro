@@ -4,5 +4,5 @@ import { TaskStatus } from "../task.module";
 export class UpdateStatusDto {
     @IsNotEmpty()
     @IsEnum(TaskStatus)
-    status: TaskStatus;
+    status!: TaskStatus;
 }
